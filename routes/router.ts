@@ -7,7 +7,7 @@ import {
   deleteTask,
   assignTasktoUser,
   getTasksByUser
-} from '../controller/controller.ts';
+} from '../controller/controller.js';
 const router=express.Router();
 router.get('/tasks',listTasks);
 router.post('/tasks',createTask);

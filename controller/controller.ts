@@ -1,4 +1,4 @@
-import * as Service from '../services/service.ts';
+import * as Service from '../services/service.js';
 export async function listTasks(req:any,res:any){
     try{
         const tasks=await Service.getTasks();
@@ -33,8 +33,8 @@ export async function updateTask(req:any,res:any){
 }
 export async function deleteTask(req:any,res:any){
     try{
-        const task=await Service.deleteTask(Number(req.params.id));
-        res.json(task)
+        const result = await Service.deleteTask(Number(req.params.id));
+        res.json(result);
     }catch(error){
         res.status(500).json({message:String(error)});
     }
