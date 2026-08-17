@@ -54,7 +54,7 @@ describe("auth service", () => {
     });
 
     await expect(registerUser("alice", "123456")).rejects.toThrow(
-      /username exists cannot register/i
+      /username exists cannot register/
     );
   });
 });
