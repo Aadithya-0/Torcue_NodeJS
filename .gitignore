@@ -1,5 +1,14 @@
 node_modules
-# Keep environment variables out of version control
+.next
+.windsurf
+.claude
+.agents
+.vscode
+npm-debug.log*
 .env
 
 /generated/prisma
+
+# Optional local caches
+.cache
+coverage
