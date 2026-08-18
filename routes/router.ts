@@ -8,12 +8,17 @@ import {
   assignTasktoUser,
   getTasksByUser
 } from '../controller/controller.js';
+import { verifyAuth } from '../middleware/authMiddleware.js';
+
 const router=express.Router();
-router.get('/tasks',listTasks);
-router.post('/tasks',createTask);
-router.get('/tasks/user/:userId',getTasksByUser);
-router.get('/tasks/:id',getTask);
-router.put('/tasks/:id',updateTask);
-router.delete('/tasks/:id',deleteTask);
-router.patch('/tasks/:id/assign',assignTasktoUser);
+
+// Protect all task routes with JWT verification
+router.get('/tasks', verifyAuth, listTasks);
+router.post('/tasks', verifyAuth, createTask);
+router.get('/tasks/user/:userId', verifyAuth, getTasksByUser);
+router.get('/tasks/:id', verifyAuth, getTask);
+router.put('/tasks/:id', verifyAuth, updateTask);
+router.delete('/tasks/:id', verifyAuth, deleteTask);
+router.patch('/tasks/:id/assign', verifyAuth, assignTasktoUser);
+
 export default router;
