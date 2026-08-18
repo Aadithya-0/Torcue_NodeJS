@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import TaskCard from "@/components/dashboard/TaskCard";
+import { createTaskSchema } from '@/lib/schemas/task';
+
 
 const ITEMS_PER_PAGE = 5;
 const API_BASE_URL = "http://localhost:4000";
@@ -31,16 +33,6 @@ type DecodedToken = {
   username: string;
 };
 
-function decodeToken(token: string): DecodedToken | null {
-  try {
-    const payload = token.split(".")[1];
-    const decoded = JSON.parse(Buffer.from(payload, "base64").toString());
-    return decoded;
-  } catch (error) {
-    return null;
-  }
-}
-
 export default function DashboardPage() {
   const router = useRouter();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
@@ -56,20 +48,16 @@ export default function DashboardPage() {
   const [currentUser, setCurrentUser] = useState<DecodedToken | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    const userId = sessionStorage.getItem("userId");
+    const username = sessionStorage.getItem("username");
+
+    if (!userId || !username) {
       router.replace("/");
       return;
     }
 
-    const decoded = decodeToken(token);
-    if (!decoded) {
-      router.replace("/");
-      return;
-    }
-
-    setCurrentUser(decoded);
-    fetchTasks(decoded.userId, token);
+    setCurrentUser({ userId: parseInt(userId), username });
+    fetchTasks(parseInt(userId));
   }, [router]);
 
   const mapTask = (task: BackendTask): TaskItem => ({
@@ -79,13 +67,11 @@ export default function DashboardPage() {
     assignee: task.user?.username ?? "Unassigned",
   });
 
-  const fetchTasks = async (userId: number, token: string) => {
+  const fetchTasks = async (userId: number) => {
     try {
       setLoading(true);
       const res = await fetch(`${API_BASE_URL}/tasks/user/${userId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: "include",
       });
 
       if (!res.ok) {
@@ -104,20 +90,13 @@ export default function DashboardPage() {
   };
 
   const handleMarkDone = async (id: number) => {
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      router.push("/");
-      return;
-    }
-
     try {
       const res = await fetch(`${API_BASE_URL}/tasks/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
+        credentials: "include",
         body: JSON.stringify({ completed: true }),
       });
 
@@ -139,43 +118,57 @@ export default function DashboardPage() {
     }
   };
 
-  const handleAddTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const token = localStorage.getItem("token");
 
-    if (!token || !currentUser || !newTitle.trim()) {
-      setError("Title is required to create a task.");
+const handleAddTask = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  if (!currentUser) {
+    setError("Not authenticated");
+    return;
+  }
+
+  try {
+    // Validate before sending
+    const result = createTaskSchema.safeParse({
+      title: newTitle.trim(),
+      description: newDescription.trim() || undefined,
+    });
+
+    if (!result.success) {
+      // Show first validation error
+      const errors = result.error.flatten().fieldErrors;
+      const firstErrorMessage = Object.values(errors)[0]?.[0] as string;
+      setError(firstErrorMessage || "Validation failed");
       return;
     }
 
-    try {
-      const res = await fetch(`${API_BASE_URL}/tasks`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          title: newTitle.trim(),
-          description: newDescription.trim() || undefined,
-          userId: currentUser.userId,
-        }),
-      });
+    const res = await fetch(`${API_BASE_URL}/tasks`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        ...result.data,
+        userId: currentUser.userId,
+      }),
+    });
 
-      if (!res.ok) {
-        throw new Error("Could not create task");
-      }
-
-      const createdTask: BackendTask = await res.json();
-      setTasks((current) => [mapTask(createdTask), ...current]);
-      setNewTitle("");
-      setNewDescription("");
-      setShowAddTask(false);
-      setError("");
-    } catch (err) {
-      setError("Unable to create a new task.");
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.message || "Could not create task");
     }
-  };
+
+    const createdTask: BackendTask = await res.json();
+    setTasks((current) => [mapTask(createdTask), ...current]);
+    setNewTitle("");
+    setNewDescription("");
+    setShowAddTask(false);
+    setError("");
+  } catch (err) {
+    setError(err instanceof Error ? err.message : "Unable to create task");
+  }
+};
 
   const filteredTasks = tasks.filter((task) => {
     const matchesSearch = task.title.toLowerCase().includes(search.toLowerCase());
@@ -199,8 +192,16 @@ export default function DashboardPage() {
         </h1>
         <button
           onClick={() => {
-            localStorage.removeItem("token");
-            router.push("/");
+            // Call logout endpoint to clear httpOnly cookie
+            fetch("http://localhost:4000/auth/logout", {
+              method: "POST",
+              credentials: "include",
+            }).then(() => {
+              // Clear session storage
+              sessionStorage.removeItem("userId");
+              sessionStorage.removeItem("username");
+              router.push("/");
+            });
           }}
         >
           Logout

@@ -5,5 +5,8 @@ const authRouter = express.Router();
 
 authRouter.post('/register', register);
 authRouter.post('/login', login);
-
+authRouter.post('/logout', (req, res) => {
+  res.clearCookie('token', { path: '/' });
+  res.json({ message: 'Logged out' });
+});
 export default authRouter;

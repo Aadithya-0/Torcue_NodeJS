@@ -1,4 +1,5 @@
 import prisma from "../prisma";
+import { TaskInput } from '../lib/schemas/task';
 
 export async function getTasks() {
   try {
@@ -10,17 +11,13 @@ export async function getTasks() {
   }
 }
 
-export async function createTask(task: {
-  title: string;
-  description?: string;
-  userId?: number;
-}) {
+export async function createTask(task: TaskInput & { userId: number }) {
   try {
     return await prisma.task.create({
       data: {
         title: task.title,
-        description: task.description ?? null,
-        userId: task.userId ?? null,
+        description: task.description || null,
+        userId: task.userId,
       },
     });
   } catch (error) {

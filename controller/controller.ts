@@ -1,4 +1,6 @@
 import * as Service from '../services/service.js';
+import { createTaskSchema } from '../lib/schemas/task.js';
+
 export async function listTasks(req:any,res:any){
     try{
         const tasks=await Service.getTasks();
@@ -7,13 +9,27 @@ export async function listTasks(req:any,res:any){
         res.status(500).json({message:String(error)});
     }
 }
-export async function createTask(req:any,res:any){
-    try{
-        const task= await Service.createTask(req.body);
-        res.status(201).json(task);
-    }catch(error){
-        res.status(500).json({message:String(error)});
+export async function createTask(req: any, res: any) {
+  try {
+    // Validate incoming data
+    const result = createTaskSchema.safeParse(req.body);
+    
+    if (!result.success) {
+      return res.status(400).json({ 
+        errors: result.error.flatten().fieldErrors 
+      });
     }
+
+    // result.data is now type-safe
+    const task = await Service.createTask({
+      ...result.data,
+      userId: req.userId, // from JWT middleware
+    });
+    
+    res.status(201).json(task);
+  } catch (error) {
+    res.status(500).json({ message: String(error) });
+  }
 }
 export async function getTask(req:any,res:any){
     try{

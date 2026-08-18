@@ -10,7 +10,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (typeof window !== "undefined" && localStorage.getItem("token")) {
+    if (typeof window !== "undefined" && sessionStorage.getItem("userId")) {
       router.replace("/dashboard");
     }
   }, [router]);
@@ -24,6 +24,7 @@ export default function LoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({ username, password }),
       });
 
@@ -33,7 +34,10 @@ export default function LoginPage() {
         throw new Error(data.message || "Login failed");
       }
 
-      localStorage.setItem("token", data.token);
+      // Store user info in sessionStorage
+      sessionStorage.setItem("userId", String(data.userId));
+      sessionStorage.setItem("username", data.username);
+      
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.message || "Something went wrong");
